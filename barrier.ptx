@@ -1,0 +1,54 @@
+.visible .func multi_gpu_barrier(unsigned int**, unsigned int, unsigned long, unsigned long, int, int)(
+        .param .b64 multi_gpu_barrier(unsigned int**, unsigned int, unsigned long, unsigned long, int, int)_param_0,
+        .param .b32 multi_gpu_barrier(unsigned int**, unsigned int, unsigned long, unsigned long, int, int)_param_1,
+        .param .b64 multi_gpu_barrier(unsigned int**, unsigned int, unsigned long, unsigned long, int, int)_param_2,
+        .param .b64 multi_gpu_barrier(unsigned int**, unsigned int, unsigned long, unsigned long, int, int)_param_3,
+        .param .b32 multi_gpu_barrier(unsigned int**, unsigned int, unsigned long, unsigned long, int, int)_param_4,
+        .param .b32 multi_gpu_barrier(unsigned int**, unsigned int, unsigned long, unsigned long, int, int)_param_5
+)
+{
+
+        ld.param.u64    %rd4, [multi_gpu_barrier(unsigned int**, unsigned int, unsigned long, unsigned long, int, int)_param_0];
+        ld.param.u32    %r1, [multi_gpu_barrier(unsigned int**, unsigned int, unsigned long, unsigned long, int, int)_param_1];
+        ld.param.u64    %rd5, [multi_gpu_barrier(unsigned int**, unsigned int, unsigned long, unsigned long, int, int)_param_2];
+        ld.param.u64    %rd6, [multi_gpu_barrier(unsigned int**, unsigned int, unsigned long, unsigned long, int, int)_param_3];
+        ld.param.s32    %rd1, [multi_gpu_barrier(unsigned int**, unsigned int, unsigned long, unsigned long, int, int)_param_4];
+        ld.param.u32    %r2, [multi_gpu_barrier(unsigned int**, unsigned int, unsigned long, unsigned long, int, int)_param_5];
+        setp.ge.u64     %p1, %rd1, %rd6;
+        @%p1 bra        $L__BB0_5;
+
+        and.b32         %r3, %r1, 1;
+        setp.eq.b32     %p2, %r3, 1;
+        selp.b64        %rd2, %rd6, 0, %p2;
+        setp.ne.s32     %p3, %r2, 0;
+        @%p3 bra        $L__BB0_3;
+
+        shl.b64         %rd8, %rd1, 3;
+        add.s64         %rd9, %rd4, %rd8;
+        add.s64         %rd10, %rd2, %rd5;
+        ld.u64  %rd11, [%rd9];
+        shl.b64         %rd12, %rd10, 2;
+        add.s64         %rd7, %rd11, %rd12;
+        st.global.release.sys.b32 [%rd7], %r1;
+
+$L__BB0_3:
+        shl.b64         %rd13, %rd5, 3;
+        add.s64         %rd14, %rd4, %rd13;
+        add.s64         %rd15, %rd2, %rd1;
+        ld.u64  %rd16, [%rd14];
+        shl.b64         %rd17, %rd15, 2;
+        add.s64         %rd3, %rd16, %rd17;
+
+$L__BB0_4:
+        ld.global.acquire.sys.b32 %r5, [%rd3];
+        setp.ne.s32     %p4, %r5, %r1;
+        @%p4 bra        $L__BB0_4;
+
+$L__BB0_5:
+        bar.sync        0;
+        ret;
+
+}
+        {
+
+        }
