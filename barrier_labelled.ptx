@@ -1,0 +1,62 @@
+.visible .func multi_gpu_barrier(unsigned int**, unsigned int, unsigned long, unsigned long, int, int)(
+        .param .b64 multi_gpu_barrier(unsigned int**, unsigned int, unsigned long, unsigned long, int, int)_param_0,
+        .param .b32 multi_gpu_barrier(unsigned int**, unsigned int, unsigned long, unsigned long, int, int)_param_1,
+        .param .b64 multi_gpu_barrier(unsigned int**, unsigned int, unsigned long, unsigned long, int, int)_param_2,
+        .param .b64 multi_gpu_barrier(unsigned int**, unsigned int, unsigned long, unsigned long, int, int)_param_3,
+        .param .b32 multi_gpu_barrier(unsigned int**, unsigned int, unsigned long, unsigned long, int, int)_param_4,
+        .param .b32 multi_gpu_barrier(unsigned int**, unsigned int, unsigned long, unsigned long, int, int)_param_5
+)
+{
+
+        ld.param.u64    %rd4, [multi_gpu_barrier(unsigned int**, unsigned int, unsigned long, unsigned long, int, int)_param_0]; // signals (uint32_t**)
+        ld.param.u32    %r1, [multi_gpu_barrier(unsigned int**, unsigned int, unsigned long, unsigned long, int, int)_param_1]; // flag (uint32_t)
+        ld.param.u64    %rd5, [multi_gpu_barrier(unsigned int**, unsigned int, unsigned long, unsigned long, int, int)_param_2]; // local_rank (size_t)
+        ld.param.u64    %rd6, [multi_gpu_barrier(unsigned int**, unsigned int, unsigned long, unsigned long, int, int)_param_3]; // world_size (size_t)
+        ld.param.s32    %rd1, [multi_gpu_barrier(unsigned int**, unsigned int, unsigned long, unsigned long, int, int)_param_4]; // tidx (int)
+        ld.param.u32    %r2, [multi_gpu_barrier(unsigned int**, unsigned int, unsigned long, unsigned long, int, int)_param_5]; // bidx (int)
+        
+        // Compare tidx >= world_size
+        setp.ge.u64     %p1, %rd1, %rd6; // Set predicate %p1 if tidx >= world_size
+        @%p1 bra        $L__BB0_5; // If tidx >= world_size, jump to label BB0_5 (end of barrier)
+
+        // Calculate offset based on flag parity
+        and.b32         %r3, %r1, 1; // %r3 = flag & 1
+        setp.eq.b32     %p2, %r3, 1; // Set predicate %p2 if flag is odd
+        selp.b64        %rd2, %rd6, 0, %p2; // If flag is odd, %rd2 = world_size; else %rd2 = 0
+
+        // Check if block index != 0
+        setp.ne.s32     %p3, %r2, 0; // Set predicate %p3 if bidx != 0
+        @%p3 bra        $L__BB0_3; // If bidx != 0, jump to label BB0_3 (skip store)
+
+        // Only block 0 writes the flag
+        shl.b64         %rd8, %rd1, 3; // %rd8 = tidx << 3 (tidx * 8)
+        add.s64         %rd9, %rd4, %rd8; // %rd9 = signals + (tidx * 8)
+        add.s64         %rd10, %rd2, %rd5; // %rd10 = offset + local_rank
+        ld.u64          %rd11, [%rd9]; // %rd11 = signals[tidx]
+        shl.b64         %rd12, %rd10, 2; // %rd12 = (offset + local_rank) << 2 (assuming uint32_t = 4 bytes)
+        add.s64         %rd7, %rd11, %rd12; // %rd7 = signals[tidx] + (offset + local_rank) * 4
+        st.global.release.sys.b32 [%rd7], %r1; // Store flag with release semantics
+
+$L__BB0_3:
+        // Calculate peer_barrier_d = signals[local_rank] + offset + tidx
+        shl.b64         %rd13, %rd5, 3; // %rd13 = local_rank << 3 (local_rank * 8)
+        add.s64         %rd14, %rd4, %rd13; // %rd14 = signals + (local_rank * 8)
+        add.s64         %rd15, %rd2, %rd1; // %rd15 = offset + tidx
+        ld.u64          %rd16, [%rd14]; // %rd16 = signals[local_rank]
+        shl.b64         %rd17, %rd15, 2; // %rd17 = (offset + tidx) << 2 (assuming uint32_t = 4 bytes)
+        add.s64         %rd3, %rd16, %rd17; // %rd3 = signals[local_rank] + (offset + tidx) * 4
+
+$L__BB0_4:
+        // Load peer flag with acquire semantics
+        ld.global.acquire.sys.b32 %r5, [%rd3]; // %r5 = *peer_barrier_d with acquire semantics
+        setp.ne.s32     %p4, %r5, %r1; // Set predicate %p4 if *peer_barrier_d != flag
+        @%p4 bra        $L__BB0_4; // If not equal, loop (spin-wait)
+
+$L__BB0_5:
+        // Synchronize all threads in the block
+        bar.sync        0; // Equivalent to __syncthreads()
+        ret; // Return from function
+}
+        {
+
+        }
