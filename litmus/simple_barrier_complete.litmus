@@ -1,0 +1,25 @@
+PTX MultiGPU Barrier Test
+{
+  P0:r0=1;
+  P1:r0=1;
+  P2:r0=1;
+  P3:r0=1;
+  
+  R0C0=1;
+  R0C1=1;
+  R1C0=1;
+  R1C1=1;
+  flag=0;
+}
+
+
+
+  P0@cta 0,gpu 0                    | P1@cta 0,gpu 0                    | P2@cta 0,gpu 1                     | P3@cta 0,gpu 1                                ;
+  st.release.sys R0C0, 0            | st.release.sys R1C0, 0            | st.release.sys R0C1, 0             | st.release.sys R1C1, 0                        ;
+  L0:                               | L0:                               | L0:                                | L0:                                           ;
+  ld.acquire.sys r0, R0C0           | ld.acquire.sys r0, R0C1           | ld.acquire.sys r0, R1C0            | ld.acquire.sys r0, R1C1                       ;
+  bne r0, 0, L0                     | bne r0, 0, L0                     | bne r0, 0, L0                      | bne r0, 0, L0                                 ;
+
+  fence.sc.cta                      | fence.sc.cta                      | fence.sc.cta                       | fence.sc.cta                                  ;
+exists
+(P0:r0 == 0 /\ P1:r0 == 0 /\ P2:r0 == 0 /\ P3:r0 == 0)

@@ -1,0 +1,36 @@
+PTX MultiGPU Barrier Test
+{
+  // Initial conditions
+  // Two signals: X for GPU0, Y for GPU1
+  // Registers for threads
+  P0:r0=1;
+  P1:r0=1;
+  P2:r0=1;
+  P3:r0=1;
+  
+  R0C0=1;
+  R0C1=1;
+  R1C0=1;
+  R1C1=1;
+  flag=0;
+}
+
+// Participants:
+// P0@cta 0,gpu 0 and P1@cta 0,gpu 0 represent the two threads on GPU0, block 0.
+// P2@cta 0,gpu 1 and P3@cta 0,gpu 1 represent the two threads on GPU1, block 0.
+
+// Each thread does:
+// 1. Release store of flag to its GPU’s signal
+// 2. A block-level fence to ensure ordering
+// 3. Acquire load from the peer GPU’s signal (spin-wait until it sees flag=1)
+// 4. Another fence to simulate bar.sync
+
+P0@cta 0,gpu 0                    | P1@cta 0,gpu 0                    | P2@cta 0,gpu 1                     | P3@cta 0,gpu 1                                ;
+st.release.sys.b32 ROCO, flag     | st.release.sys.b32 R1CO, flag     | st.release.sys.b32 R0C1, flag      | st.release.sys.b32 R1C1, flag                 ;
+ld.acquire.sys r0, R0C0           | ld.acquire.sys r0, R0C1           | ld.acquire.sys r0, R1C0            | ld.acquire.sys r0, R1C1                       ;
+fence.sc.cta                      | fence.sc.cta                      | fence.sc.cta                       | fence.sc.cta                                  ;
+
+// We expect that all threads observe the other's flag set to 0.
+
+exists
+(P0:r0 == 0 /\ P1:r0 == 0 /\ P2:r0 == 0 /\ P3:r0 == 0)
