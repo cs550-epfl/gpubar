@@ -1,0 +1,24 @@
+PTX MultiGPU Barrier Test
+{
+  P0:r0=1;
+  P1:r0=1;
+
+  
+  x1=1;
+  x2=1;
+  x=0;
+}
+
+
+
+  P0@cta 0,gpu 0           | P1@cta 0,gpu 1          ; 
+  st.weak x, 550           |       ; 
+  bar.cta.sync 0           | bar.cta.sync 0          ; 
+  LC00:                    | LC10:                   ; 
+  ld.acquire.sys r0, x1    | ld.acquire.sys r0, x2   ; 
+  bne r0, 0, LC00          | bne r0, 0, LC10         ; 
+  bar.cta.sync 0           | bar.cta.sync 0          ; 
+                           | ld.weak r1, x           ;
+forall
+(P1:r1 == 550)
+

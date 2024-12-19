@@ -1,0 +1,32 @@
+PTX MultiGPU Barrier Test
+{
+  P0:r0=1;
+  P1:r0=1;
+  P2:r0=1;
+  P3:r0=1;
+  
+  R0C0=1;
+  R0C1=1;
+  R1C0=1;
+  R1C1=1;
+  flag=0;
+  counter=0;
+}
+
+
+
+  P0@cta 0,gpu 0                    | P1@cta 0,gpu 0                    | P2@cta 0,gpu 1                     | P3@cta 0,gpu 1                                ;
+  ld.weak r1, counter               | ld.weak r1, counter               | ld.weak r1, counter                | ld.weak r1, counter                          ;
+  add r1, r1, 1                     | add r1, r1, 1                     | add r1, r1, 1                      | add r1, r1, 1                                 ;
+  st.weak counter, r1               | st.weak counter, r1               | st.weak counter, r1                | st.weak counter, r1                           ; 
+
+  bar.cta.sync 0                    | bar.cta.sync 0                    | bar.cta.sync 0                     | bar.cta.sync 0                                ;
+  st.release.sys R0C0, 0            | st.release.sys R1C0, 0            | st.release.sys R0C1, 0             | st.release.sys R1C1, 0                        ;
+  LC00:                             | LC10:                             | LC20:                              | LC30:                                    	   ;   
+  ld.acquire.sys r0, R0C0           | ld.acquire.sys r0, R0C1           | ld.acquire.sys r0, R1C0            | ld.acquire.sys r0, R1C1                       ;
+  bne r0, 0, LC00                   | bne r0, 0, LC10                   | bne r0, 0, LC20                    | bne r0, 0, LC30                               ;
+  bar.cta.sync 0                    | bar.cta.sync 0                    | bar.cta.sync 0                     | bar.cta.sync 0                                ;
+  ld.weak r2, counter               |ld.weak r2, counter                |ld.weak r2, counter                 |ld.weak r2, counter                            ;
+forall
+(P0:r2 == 4 /\ P1:r2 == 4 /\ P2:r2 == 4 /\ P3:r2 == 4)
+

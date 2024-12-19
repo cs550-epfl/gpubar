@@ -1,0 +1,20 @@
+PTX MultiGPU Barrier Test
+{
+  P0:r0=1;
+  P0:r1=0;
+  
+  ROCO=1;
+
+}
+
+
+
+  P0@cta 0,gpu 0            ;
+  LC00:                     ;
+  ld.acquire.sys r0, ROCO   ;
+  bne r0, 0, LC00           ;
+  add r1, r1, 1     ;
+                      
+forall
+(P0:r1 == 1)
+
