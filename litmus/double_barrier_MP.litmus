@@ -1,0 +1,42 @@
+PTX MultiGPU Barrier Test
+"passed liveness and spec, message passing"
+{
+  P0:r0=1;
+  P1:r0=1;
+  P2:r0=1;
+  P3:r0=1;
+  
+  R0C0=1;
+  R0C1=1;
+  R1C0=1;
+  R1C1=1;
+  R0C2=1;
+  R0C3=1;
+  R1C2=1;
+  R1C3=1;
+  x0=0;
+  x1=0;
+}
+
+
+
+  P0@cta 0,gpu 0                    | P1@cta 0,gpu 0                    | P2@cta 0,gpu 1                     | P3@cta 0,gpu 1                                ;
+  st.weak x0, 1                      |                                   |                                    |               						                     ;
+  bar.cta.sync 0                    | bar.cta.sync 0                    | bar.cta.sync 0                     | bar.cta.sync 0                                ;
+  st.release.sys R0C0, 0            | st.release.sys R1C0, 0            | st.release.sys R0C1, 0             | st.release.sys R1C1, 0                        ;
+  LC00:                             | LC10:                             | LC20:                              | LC30:                                    	   ;
+  ld.acquire.sys r0, R0C0           | ld.acquire.sys r0, R0C1           | ld.acquire.sys r0, R1C0            | ld.acquire.sys r0, R1C1                       ;
+  bne r0, 0, LC00                   | bne r0, 0, LC10                   | bne r0, 0, LC20                    | bne r0, 0, LC30                               ;
+  bar.cta.sync 1                    | bar.cta.sync 1                    | bar.cta.sync 1                     | bar.cta.sync 1                                ;
+                                    |                                   | ld.weak r1, x0                      |										                           ;
+  st.weak x1, 0                     |                                   |                                    |               						                     ;
+  bar.cta.sync 2                    | bar.cta.sync 2                    | bar.cta.sync 2                     | bar.cta.sync 2                                ;
+  st.release.sys R0C2, 1            | st.release.sys R1C2, 1            | st.release.sys R0C3, 1             | st.release.sys R1C3, 1                        ;
+  LC01:                             | LC11:                             | LC21:                              | LC31:                                    	   ;   
+  ld.acquire.sys r0, R0C2           | ld.acquire.sys r0, R0C3           | ld.acquire.sys r0, R1C2            | ld.acquire.sys r0, R1C3                       ;
+  bne r0, 1, LC01                   | bne r0, 1, LC11                   | bne r0, 1, LC21                    | bne r0, 1, LC31                               ;
+  bar.cta.sync 3                    | bar.cta.sync 3                    | bar.cta.sync 3                     | bar.cta.sync 3                                ;
+                                    |                                   | ld.weak r2, x1                      |										                           ;
+forall
+(P2:r1 == 1 /\ P2:r2 == 0)
+

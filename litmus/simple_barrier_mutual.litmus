@@ -1,0 +1,39 @@
+PTX MultiGPU Barrier Test
+"passed liveness and specification, each thread in this test writes to a distinct memory location, run barrier, then checks if all the writes are visible"
+{
+  P0:r0=1;
+  P1:r0=1;
+  P2:r0=1;
+  P3:r0=1;
+  
+  R0C0=1;
+  R0C1=1;
+  R1C0=1;
+  R1C1=1;
+  flag=0;
+  x=0;
+  y=0;
+  z=0;
+  w=0;
+}
+
+
+
+  P0@cta 0,gpu 0                    | P1@cta 0,gpu 0                    | P2@cta 0,gpu 1                    | P3@cta 0,gpu 1                    ;
+  st.weak x, 1                      | st.weak y, 1                      | st.weak z, 1                      | st.weak w, 1                      ;
+  bar.cta.sync 0                    | bar.cta.sync 0                    | bar.cta.sync 0                    | bar.cta.sync 0                    ;
+  st.release.sys R0C0, 0            | st.release.sys R1C0, 0            | st.release.sys R0C1, 0            | st.release.sys R1C1, 0            ;
+  LC00:                             | LC10:                             | LC20:                             | LC30:                             ;  
+  ld.acquire.sys r0, R0C0           | ld.acquire.sys r0, R0C1           | ld.acquire.sys r0, R1C0           | ld.acquire.sys r0, R1C1           ;
+  bne r0, 0, LC00                   | bne r0, 0, LC10                   | bne r0, 0, LC20                   | bne r0, 0, LC30                   ;
+  bar.cta.sync 1                    | bar.cta.sync 1                    | bar.cta.sync 1                    | bar.cta.sync 1                    ;
+  ld.weak r1, x                     | ld.weak r1, x                     | ld.weak r1, x                     | ld.weak r1, x                     ;
+  ld.weak r2, y                     | ld.weak r2, y                     | ld.weak r2, y                     | ld.weak r2, y                     ;
+  ld.weak r3, z                     | ld.weak r3, z                     | ld.weak r3, z                     | ld.weak r3, z                     ;
+  ld.weak r4, w                     | ld.weak r4, w                     | ld.weak r4, w                     | ld.weak r4, w                     ;
+  add r5, r1, r2                    | add r5, r1, r2                    | add r5, r1, r2                    | add r5, r1, r2                    ;
+  add r6, r3, r4                    | add r6, r3, r4                    | add r6, r3, r4                    | add r6, r3, r4                    ;
+  add r7, r5, r6                    | add r7, r5, r6                    | add r7, r5, r6                    | add r7, r5, r6                    ;
+forall
+(P0:r7 == 4 /\ P1:r7 == 4 /\ P2:r7 == 4 /\ P3:r7 == 4)
+
